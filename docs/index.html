@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TPU LoRA Training Hub</title>
+  <!-- Tailwind CDN and Chart.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"; background:#f9fafb; }
+    /* Simple class equivalents for the removed @apply rules */
+    .nav-link { padding:.5rem .75rem; color:#4b5563; font-weight:600; border-radius:.375rem; transition:background-color .15s; }
+    .nav-link:hover { background:#e5e7eb; }
+    .nav-link-active { background:#2563eb; color:white; }
+    .chart-container { position:relative; width:100%; max-width:420px; height:320px; margin:1rem auto; }
+    @media (min-width:768px){ .chart-container{ height:420px; } }
+    pre code { display:block; white-space:pre-wrap; word-break:break-word; }
+    details > summary { cursor:pointer; padding:.75rem 1rem; background:#f3f4f6; border-radius:.5rem; font-weight:600; color:#1f2937; }
+    details[open] > summary { background:#dbeafe; color:#1e3a8a; }
+    details > div { padding:1rem; border:1px solid #e5e7eb; border-top:none; border-bottom-left-radius:.5rem; border-bottom-right-radius:.5rem; }
+    .kpi-card { background:white; padding:1.5rem; border-radius:.75rem; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+    .kpi-title { font-size:.875rem; font-weight:600; color:#6b7280; }
+    .kpi-value { font-size:1.875rem; font-weight:800; color:#111827; }
+    .code-tab-active { background:#2563eb; color:white; }
+  </style>
+</head>
+<body class="text-gray-900">
+  <header class="bg-white shadow-sm">
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between">
+      <h1 class="text-2xl font-bold text-blue-700">TPU LoRA Training Hub</h1>
+      <div id="nav-links" class="flex flex-wrap justify-center gap-2 md:gap-4 mt-4 md:mt-0">
+        <button data-view="dashboard" class="nav-link nav-link-active">Dashboard</button>
+        <button data-view="quota" class="nav-link">Quota Explorer</button>
+        <button data-view="code" class="nav-link">Working Code</button>
+        <button data-view="troubleshooting" class="nav-link">Troubleshooting</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Dashboard -->
+    <section id="dashboard-view">
+      <h2 class="text-3xl font-bold mb-2">Dashboard</h2>
+      <p class="text-lg text-gray-600 mb-6">Welcome to your TPU training hub. This dashboard summarizes key resources and the process that actually works in practice.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="kpi-card">
+          <h3 class="kpi-title">Primary Model</h3>
+          <p class="kpi-value">Mistral-Nemo-12B</p>
+          <p class="text-sm text-gray-500">mistralai/Mistral-Nemo-Base-2407</p>
+        </div>
+        <div class="kpi-card">
+          <h3 class="kpi-title">On-Demand Quota</h3>
+          <p class="kpi-value">32 v4 Chips</p>
+          <p class="text-sm text-gray-500">us-central2-b</p>
+        </div>
+        <div class="kpi-card">
+          <h3 class="kpi-title">Storage Bucket</h3>
+          <p class="kpi-value truncate">joel-albon-nemo-bucket</p>
+          <p class="text-sm text-gray-500">gs://joel-albon-nemo-bucket</p>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-2xl font-bold mb-4">The 5-Step Process</h3>
+        <p class="text-gray-600 mb-6">Queued TPU jobs pull your startup script from local disk, run, and push artifacts back to GCS. High-level flow:</p>
+        <div class="flex flex-col md:flex-row flex-wrap items-center justify-between text-center">
+          <div class="flex flex-col items-center p-2 min-w-[150px]">
+            <div class="w-16 h-16 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-2xl font-bold">1</div>
+            <p class="font-semibold mt-2">Setup GCS</p>
+            <p class="text-sm text-gray-500">Create bucket.</p>
+          </div>
+          <div class="hidden md:block text-2xl text-gray-300 mx-4">→</div>
+          <div class="flex flex-col items-center p-2 min-w-[150px]">
+            <div class="w-16 h-16 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-2xl font-bold">2</div>
+            <p class="font-semibold mt-2">Upload Files</p>
+            <p class="text-sm text-gray-500">Data and scripts.</p>
+          </div>
+          <div class="hidden md:block text-2xl text-gray-300 mx-4">→</div>
+          <div class="flex flex-col items-center p-2 min-w-[150px]">
+            <div class="w-16 h-16 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-2xl font-bold">3</div>
+            <p class="font-semibold mt-2">Queue Job</p>
+            <p class="text-sm text-gray-500"><code>gcloud … create</code></p>
+          </div>
+          <div class="hidden md:block text-2xl text-gray-300 mx-4">→</div>
+          <div class="flex flex-col items-center p-2 min-w-[150px]">
+            <div class="w-16 h-16 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-2xl font-bold">4</div>
+            <p class="font-semibold mt-2">VM Boots</p>
+            <p class="text-sm text-gray-500">Runs startup script.</p>
+          </div>
+          <div class="hidden md:block text-2xl text-gray-300 mx-4">→</div>
+          <div class="flex flex-col items-center p-2 min-w-[150px]">
+            <div class="w-16 h-16 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-2xl font-bold">5</div>
+            <p class="font-semibold mt-2">Train & Save</p>
+            <p class="text-sm text-gray-500">Artifacts to GCS.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quota Explorer -->
+    <section id="quota-view" class="hidden">
+      <h2 class="text-3xl font-bold mb-2">Quota Explorer</h2>
+      <p class="text-lg text-gray-600 mb-6">Click a card to generate a correct `gcloud` command for that resource.</p>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2">
+          <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-semibold mb-4">Filters</h3>
+            <div class="flex flex-wrap gap-4 mb-6">
+              <label class="flex items-center gap-2">
+                <input type="checkbox" id="filter-ondemand" class="h-5 w-5 text-blue-600 rounded" checked> <span class="font-medium">On-Demand</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" id="filter-spot" class="h-5 w-5 text-blue-600 rounded" checked> <span class="font-medium">Spot</span>
+              </label>
+              <span class="mx-2"></span>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" id="filter-v4" class="h-5 w-5 text-blue-600 rounded" checked> <span class="font-medium">v4</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" id="filter-v5e" class="h-5 w-5 text-blue-600 rounded" checked> <span class="font-medium">v5e</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" id="filter-v6e" class="h-5 w-5 text-blue-600 rounded" checked> <span class="font-medium">v6e</span>
+              </label>
+            </div>
+
+            <h3 class="text-xl font-semibold mb-4">Available Quotas</h3>
+            <div id="quota-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-1">
+          <div class="bg-white p-6 rounded-lg shadow-md sticky top-8">
+            <h3 class="text-xl font-semibold mb-4">Recommended Command</h3>
+            <p class="text-sm text-gray-600 mb-4">Click a card to generate. It assumes `startup-script.sh` is in your current shell directory.</p>
+            <textarea id="command-output" rows="8" class="w-full p-3 font-mono text-xs bg-gray-100 text-gray-800 rounded-md border border-gray-300" readonly>Click a quota card...</textarea>
+            <h3 class="text-xl font-semibold mt-6 mb-4">Quota by Type (Chips)</h3>
+            <div class="chart-container"><canvas id="quotaChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Working Code -->
+    <section id="code-view" class="hidden">
+      <h2 class="text-3xl font-bold mb-2">Working Code</h2>
+      <p class="text-lg text-gray-600 mb-6">Final scripts that actually run on TPU VMs. Startup script installs clean deps, runs, and uploads artifacts.</p>
+
+      <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="flex border-b border-gray-200">
+          <button class="code-tab py-3 px-6 font-medium text-gray-600 hover:bg-gray-100" data-tab="train">train_lora_tpu.py</button>
+          <button class="code-tab py-3 px-6 font-medium text-gray-600 hover:bg-gray-100" data-tab="startup">startup-script.sh</button>
+          <button class="code-tab py-3 px-6 font-medium text-gray-600 hover:bg-gray-100" data-tab="reqs">requirements.txt</button>
+        </div>
+
+        <div class="p-6 relative">
+          <button id="copy-btn" class="absolute top-6 right-6 bg-gray-700 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-gray-600">Copy</button>
+
+          <div id="code-train" class="code-content">
+<pre class="text-sm leading-relaxed overflow-x-auto"><code id="code-train-content" class="language-python">import os
+import torch
+import torch_xla.core.xla_model as xm
+from dataclasses import dataclass, field
+from typing import Optional, List
+
+import transformers
+from transformers import (
+    HfArgumentParser,
+    TrainingArguments,
+    Trainer,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    DataCollatorForLanguageModeling,
+)
+from datasets import load_dataset
+from peft import LoraConfig, get_peft_model
+
+print(f"Transformers version: {transformers.__version__}")
+
+@dataclass
+class ModelArguments:
+    model_name_or_path: str = field(metadata={"help": "HF model id or path"})
+
+@dataclass
+class DataArguments:
+    train_file: str = field(metadata={"help": "Path to training JSONL"})
+    validation_file: Optional[str] = field(default=None)
+    max_seq_length: int = field(default=8192)
+    data_field_name: str = field(default="messages")
+
+@dataclass
+class LoRaArguments:
+    lora_r: int = field(default=16)
+    lora_alpha: int = field(default=32)
+    lora_dropout: float = field(default=0.05)
+    lora_target_modules: List[str] = field(default_factory=lambda: ["q_proj","k_proj","v_proj","o_proj"])
+
+def main():
+    parser = HfArgumentParser((ModelArguments, DataArguments, LoRaArguments, TrainingArguments))
+    model_args, data_args, lora_args, training_args = parser.parse_args_into_dataclasses()
+
+    assert os.environ.get('XRT_TPU_CONFIG') is not None, "TPU env not set. This must run on a TPU VM."
+    device = xm.xla_device()
+    print(f"INFO: TPU device: {device}")
+
+    tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_args.model_name_or_path,
+        trust_remote_code=True,
+        torch_dtype=torch.bfloat16,
+    )
+
+    config = LoraConfig(
+        r=lora_args.lora_r,
+        lora_alpha=lora_args.lora_alpha,
+        lora_dropout=lora_args.lora_dropout,
+        target_modules=lora_args.lora_target_modules,
+        bias="none",
+        task_type="CAUSAL_LM",
+    )
+    model = get_peft_model(model, config)
+    model.print_trainable_parameters()
+
+    if training_args.gradient_checkpointing:
+        model.gradient_checkpointing_enable()
+
+    print("Loading datasets...")
+    data_files = {'train': data_args.train_file}
+    if data_args.validation_file:
+        data_files['validation'] = data_args.validation_file
+    raw = load_dataset('json', data_files=data_files, cache_dir="./cache")
+
+    def tokenize_function(examples):
+        outs = []
+        for chat in examples[data_args.data_field_name]:
+            text = ""
+            for m in chat:
+                if isinstance(m, dict) and isinstance(m.get("content"), str):
+                    text += m["content"] + tokenizer.eos_token
+            ids = tokenizer(text, truncation=True, max_length=data_args.max_seq_length, padding=False)["input_ids"]
+            outs.append(ids)
+        return {"input_ids": outs}
+
+    tokenized = raw.map(
+        tokenize_function, batched=True,
+        remove_columns=raw["train"].column_names,
+        num_proc=max(1, (os.cpu_count() or 2) // 2),
+        desc="Tokenizing",
+    )
+
+    training_args.bf16 = True
+    data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=tokenized["train"],
+        eval_dataset=tokenized.get("validation"),
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+    )
+
+    print("Training...")
+    trainer.train()
+    print("Saving...")
+    trainer.save_model(training_args.output_dir)
+    print(f"Done. Saved to {training_args.output_dir}")
+
+if __name__ == "__main__":
+    main()</code></pre>
+          </div>
+
+          <div id="code-startup" class="code-content hidden">
+<pre class="text-sm leading-relaxed overflow-x-auto"><code id="code-startup-content" class="language-bash">#!/bin/bash
+set -euo pipefail
+set -x
+
+# ===== CONFIG =====
+VM_USERNAME="joel"                 # set to your TPU VM user
+BUCKET_NAME="joel-albon-nemo-bucket"
+
+USER_HOME="$(eval echo ~${VM_USERNAME})"
+SCRIPT_DIR="${USER_HOME}/scripts"
+DATA_DIR="${USER_HOME}/data"
+OUTPUT_DIR="${USER_HOME}/lora-output"
+BUCKET_SCRIPT_PATH="gs://${BUCKET_NAME}/scripts"
+BUCKET_DATA_PATH="gs://${BUCKET_NAME}/data"
+echo "Startup script: user=${VM_USERNAME} bucket=${BUCKET_NAME}"
+
+# TPU env
+export WANDB_DISABLED=true
+export PJRT_DEVICE=TPU
+export XRT_TPU_CONFIG="localservice;0;localhost:51011"
+
+# Clean deps then install correct stack
+python3 -m pip uninstall -y transformers peft || true
+python3 -m pip install -U "torch_xla[tpu]~=2.3.0" -f https://storage.googleapis.com/libtpu-releases/index.html
+python3 -m pip install --no-cache-dir "transformers>=4.42.0" "peft>=0.11.0" datasets accelerate scipy wandb
+
+# Pull code and data from GCS
+mkdir -p "${SCRIPT_DIR}" "${DATA_DIR}" "${OUTPUT_DIR}"
+gsutil cp "${BUCKET_SCRIPT_PATH}/train_lora_tpu.py" "${SCRIPT_DIR}/" || true
+gsutil cp "${BUCKET_SCRIPT_PATH}/requirements.txt" "${SCRIPT_DIR}/" || true
+gsutil -m cp "${BUCKET_DATA_PATH}"/*.jsonl "${DATA_DIR}/" || true
+chown -R "${VM_USERNAME}:${VM_USERNAME}" "${USER_HOME}"
+
+# Train
+cd "${SCRIPT_DIR}"
+sudo -u "${VM_USERNAME}" python3 train_lora_tpu.py \
+  --model_name_or_path="mistralai/Mistral-Nemo-Base-2407" \
+  --train_file="${DATA_DIR}/train-00000.clean.jsonl" \
+  --validation_file="${DATA_DIR}/val-00000.clean.jsonl" \
+  --output_dir="${OUTPUT_DIR}" \
+  --num_train_epochs=3 \
+  --per_device_train_batch_size=1 \
+  --gradient_accumulation_steps=16 \
+  --gradient_checkpointing=True \
+  --learning_rate=2e-4 \
+  --lr_scheduler_type="cosine" \
+  --warmup_ratio=0.03 \
+  --logging_steps=10 \
+  --save_steps=500 \
+  --save_total_limit=2 \
+  --eval_strategy="steps" \
+  --eval_steps=250 \
+  --max_seq_length=2048 \
+  --lora_r=16 \
+  --lora_alpha=32
+
+# Upload result
+gsutil -m cp -r "${OUTPUT_DIR}" "gs://${BUCKET_NAME}/"
+echo "Training finished and uploaded."</code></pre>
+          </div>
+
+          <div id="code-reqs" class="code-content hidden">
+<pre class="text-sm leading-relaxed overflow-x-auto"><code id="code-reqs-content" class="language-bash">transformers>=4.42.0
+peft>=0.11.0
+datasets
+accelerate
+scipy
+wandb
+torch_xla[tpu]~=2.3.0</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section id="troubleshooting-view" class="hidden">
+      <h2 class="text-3xl font-bold mb-2">The Debugging Playbook</h2>
+      <p class="text-lg text-gray-600 mb-6">If a job fails, do not delete the VM. SSH in, read logs, fix, re-run.</p>
+
+      <div class="space-y-4">
+        <details>
+          <summary>Where are the logs?</summary>
+          <div>
+            <p class="text-gray-700 mb-4">SSH into the VM:</p>
+            <pre class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto text-sm"><code>gcloud compute tpus tpu-vm ssh YOUR-JOB-NAME --zone=YOUR-ZONE</code></pre>
+            <p class="text-gray-700 my-4">Follow the startup log:</p>
+            <pre class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto text-sm"><code>sudo journalctl -u google-startup-scripts.service -f</code></pre>
+          </div>
+        </details>
+
+        <details>
+          <summary>Aborted (core dumped) exit status 134</summary>
+          <div>
+            <p class="text-gray-700 mb-2"><b>Cause:</b> OOM on TPU.</p>
+            <p class="text-gray-700 mb-2"><b>Fix:</b> lower <code>--max_seq_length</code> and keep <code>--per_device_train_batch_size=1</code>. You can also raise <code>gradient_accumulation_steps</code>.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>ValueError about evaluation_strategy</summary>
+          <div>
+            <p class="text-gray-700 mb-2"><b>Fix:</b> use <code>--eval_strategy="steps"</code>. Newer Transformers renamed it.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>KeyError: 'text'</summary>
+          <div>
+            <p class="text-gray-700 mb-2"><b>Cause:</b> your JSONL field name differs.</p>
+            <p class="text-gray-700 mb-2"><b>Fix:</b> check a line:</p>
+            <pre class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto text-sm mb-2"><code>head -n 1 ~/data/train-00000.clean.jsonl</code></pre>
+            <p class="text-gray-700">If it uses <code>messages</code>, keep the script default. Otherwise update <code>data_field_name</code>.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>ImportError EncoderDecoderCache or PEFT mismatch</summary>
+          <div>
+            <p class="text-gray-700 mb-2"><b>Fix:</b> uninstall stale libs, reinstall pinned versions. The startup script already does this.</p>
+            <pre class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto text-sm"><code>pip uninstall -y transformers peft
+pip install --no-cache-dir "transformers>=4.42.0" "peft>=0.11.0"</code></pre>
+          </div>
+        </details>
+
+        <details>
+          <summary>Failed to open libtpu.so</summary>
+          <div>
+            <p class="text-gray-700 mb-2"><b>Fix:</b> install PyTorch/XLA with TPU extras:</p>
+            <pre class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto text-sm"><code>pip install "torch_xla[tpu]~=2.3.0" -f https://storage.googleapis.com/libtpu-releases/index.html</code></pre>
+          </div>
+        </details>
+
+        <details>
+          <summary>AssertionError TPU env not set</summary>
+          <div>
+            <p class="text-gray-700 mb-2"><b>Fix:</b> export the env vars in your SSH session before running Python:</p>
+            <pre class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto text-sm"><code>export PJRT_DEVICE=TPU
+export XRT_TPU_CONFIG="localservice;0;localhost:51011"</code></pre>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Example quota data. Edit here if your email changes.
+      const allQuotas = [
+        { type: 'on-demand', version: 'v4', chips: 32, zone: 'us-central2-b', accelerator: 'v4-8' },
+        { type: 'spot',      version: 'v5e', chips: 64, zone: 'us-central1-a', accelerator: 'v5litepod-4' },
+        { type: 'spot',      version: 'v6e', chips: 64, zone: 'us-east1-d',    accelerator: 'v6e-8' },
+        { type: 'spot',      version: 'v5e', chips: 64, zone: 'europe-west4-b', accelerator: 'v5litepod-4' },
+        { type: 'spot',      version: 'v4',  chips: 32, zone: 'us-central2-b', accelerator: 'v4-8' },
+        { type: 'spot',      version: 'v6e', chips: 64, zone: 'europe-west4-a', accelerator: 'v6e-8' }
+      ];
+
+      const navLinks = document.querySelectorAll('#nav-links button');
+      const views = document.querySelectorAll('main > section');
+      const quotaList = document.getElementById('quota-list');
+      const commandOutput = document.getElementById('command-output');
+      const filterInputs = document.querySelectorAll('.h-5.w-5');
+      const codeTabs = document.querySelectorAll('.code-tab');
+      const codeContents = document.querySelectorAll('.code-content');
+      const copyBtn = document.getElementById('copy-btn');
+      let quotaChart;
+
+      function showView(viewId) {
+        views.forEach(v => v.classList.add('hidden'));
+        document.getElementById(viewId + '-view').classList.remove('hidden');
+        navLinks.forEach(b => b.classList.toggle('nav-link-active', b.dataset.view === viewId));
+      }
+
+      function renderQuotaCards(quotas) {
+        quotaList.innerHTML = '';
+        if (!quotas.length) {
+          quotaList.innerHTML = '<p class="text-gray-500 md:col-span-2">No quotas match your filter.</p>';
+          return;
+        }
+        quotas.forEach(q => {
+          const card = document.createElement('div');
+          card.className = 'p-4 border rounded-lg shadow-sm cursor-pointer hover:shadow-md hover:border-blue-500 transition';
+          const isSpot = q.type === 'spot';
+          card.innerHTML = `
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xl font-bold">${q.chips} ${q.version} Chips</span>
+              <span class="px-3 py-0.5 rounded-full text-xs font-medium ${isSpot ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}">${isSpot ? 'Spot' : 'On-Demand'}</span>
+            </div>
+            <p class="text-sm text-gray-600">${q.zone}</p>
+            <p class="text-sm text-gray-500 mt-1">Accel: <code class="bg-gray-200 px-1.5 py-0.5 rounded">${q.accelerator}</code></p>
+          `;
+          card.addEventListener('click', () => generateCommand(q));
+          quotaList.appendChild(card);
+        });
+      }
+
+      function generateCommand(q) {
+        const runtime = q.version === 'v4' ? 'tpu-ubuntu2204-base' : ('v2-alpha-tpuv' + q.version);
+        const spotLine = q.type === 'spot' ? '    --spot \\\n' : '';
+        const cmd =
+`gcloud compute tpus queued-resources create "my-${q.version}-job" \\
+    --project="facesmatch" \\
+    --accelerator-type="${q.accelerator}" \\
+    --zone="${q.zone}" \\
+    --node-id="my-${q.version}-job" \\
+${spotLine}    --runtime-version="${runtime}" \\
+    --metadata-from-file=startup-script=startup-script.sh`;
+        commandOutput.value = cmd;
+      }
+
+      function updateQuotaExplorer() {
+        const flags = {
+          ondemand: document.getElementById('filter-ondemand').checked,
+          spot:     document.getElementById('filter-spot').checked,
+          v4:       document.getElementById('filter-v4').checked,
+          v5e:      document.getElementById('filter-v5e').checked,
+          v6e:      document.getElementById('filter-v6e').checked,
+        };
+        const filtered = allQuotas.filter(q => {
+          const typeOk = (flags.ondemand && q.type==='on-demand') || (flags.spot && q.type==='spot');
+          const verOk = (flags.v4 && q.version==='v4') || (flags.v5e && q.version==='v5e') || (flags.v6e && q.version==='v6e');
+          return typeOk && verOk;
+        });
+        renderQuotaCards(filtered);
+        updateChart(filtered);
+      }
+
+      function updateChart(quotas) {
+        const data = { 'v4-on-demand':0, 'v4-spot':0, 'v5e-spot':0, 'v6e-spot':0 };
+        quotas.forEach(q => {
+          if (q.version==='v4' && q.type==='on-demand') data['v4-on-demand'] += q.chips;
+          if (q.version==='v4' && q.type==='spot')      data['v4-spot'] += q.chips;
+          if (q.version==='v5e' && q.type==='spot')     data['v5e-spot'] += q.chips;
+          if (q.version==='v6e' && q.type==='spot')     data['v6e-spot'] += q.chips;
+        });
+        const labels = ['v4 On-Demand','v4 Spot','v5e Spot','v6e Spot'];
+        const values = [data['v4-on-demand'], data['v4-spot'], data['v5e-spot'], data['v6e-spot']];
+        quotaChart.data.labels = labels;
+        quotaChart.data.datasets[0].data = values;
+        quotaChart.update();
+      }
+
+      function initChart() {
+        const ctx = document.getElementById('quotaChart').getContext('2d');
+        quotaChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: [],
+            datasets: [{
+              label: '# of Chips',
+              data: [],
+              backgroundColor: [
+                'rgba(59,130,246,.7)',
+                'rgba(34,197,94,.7)',
+                'rgba(249,115,22,.7)',
+                'rgba(168,85,247,.7)'
+              ],
+              borderColor: [
+                'rgba(59,130,246,1)',
+                'rgba(34,197,94,1)',
+                'rgba(249,115,22,1)',
+                'rgba(168,85,247,1)'
+              ],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+      }
+
+      function copyCodeToClipboard() {
+        const active = document.querySelector('.code-tab-active') || codeTabs[0];
+        const codeEl = document.getElementById(`code-${active.dataset.tab}-content`);
+        const text = codeEl ? codeEl.innerText : '';
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); copyBtn.textContent = 'Copied!'; }
+        catch { copyBtn.textContent = 'Error'; }
+        document.body.removeChild(ta);
+        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+      }
+
+      navLinks.forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+      filterInputs.forEach(f => f.addEventListener('change', updateQuotaExplorer));
+      codeTabs.forEach(tab => tab.addEventListener('click', () => {
+        codeTabs.forEach(t => t.classList.remove('code-tab-active'));
+        codeContents.forEach(c => c.classList.add('hidden'));
+        tab.classList.add('code-tab-active');
+        document.getElementById(`code-${tab.dataset.tab}`).classList.remove('hidden');
+      }));
+      copyBtn.addEventListener('click', copyCodeToClipboard);
+
+      showView('dashboard');
+      initChart();
+      updateQuotaExplorer();
+      codeTabs[0].click();
+    });
+  </script>
+</body>
+</html>
